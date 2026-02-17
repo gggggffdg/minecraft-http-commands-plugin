@@ -68,7 +68,7 @@ hangarPublish {
                 // TODO: If you're using ShadowJar, replace the jar lines with the appropriate task:
                 //   jar.set(tasks.shadowJar.flatMap { it.archiveFile })
                 // Set the JAR file to upload
-                jar.set(tasks.named("shadowJar").map { it.archiveFile })
+                jar.set(tasks.shadowJar.flatMap { it.archiveFile })
 
                 // Set platform versions from gradle.properties file
                 def versions = (property("paperVersion") as String)
