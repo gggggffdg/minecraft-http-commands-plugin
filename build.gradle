@@ -1,6 +1,9 @@
+import io.papermc.hangarpublishplugin.model.Platforms
+
 plugins {
     id 'java'
     id 'org.openapi.generator' version '7.9.0'
+    id "io.papermc.hangar-publish-plugin" version "0.1.2"
 }
 
 group = 'me.lenaic.httpcommands'
@@ -37,4 +40,29 @@ openApiGenerate {
     generatorName = 'html2'
     inputSpec = "$projectDir/src/main/api/openapi.yaml"
     outputDir = "$projectDir/docs"
+}
+
+hangarPublish {
+    publications.register("plugin") {
+        version.set(project.version as String)
+        channel.set("Release") // We're using the 'Snapshot' channel
+        // TODO: Edit the project name to match your Hangar project
+        id.set("http-commands")
+        apiKey.set(System.getenv("HANGAR_API_TOKEN"))
+        platforms {
+            // TODO: Use the correct platform(s) for your plugin
+            register(Platforms.PAPER) {
+                // TODO: If you're using ShadowJar, replace the jar lines with the appropriate task:
+                //   jar.set(tasks.shadowJar.flatMap { it.archiveFile })
+                // Set the JAR file to upload
+                jar.set(tasks.jar.archiveFile)
+
+                // Set platform versions from gradle.properties file
+                def versions = (property("paperVersion") as String)
+                        .split(",")
+                        .collect { it.trim() }
+                platformVersions.set(versions)
+            }
+        }
+    }
 }
