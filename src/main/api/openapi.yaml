@@ -86,7 +86,7 @@ components:
         waitForPlayer:
           type: string
           example: "Player1"
-          description: Optional player name to wait for before executing commands
+          description: If set, the plugin will wait until the specified player is online before executing the commands. If the player is already online, commands execute immediately.
 
     CommandResponse:
       type: object
