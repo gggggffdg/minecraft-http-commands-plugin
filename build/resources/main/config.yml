@@ -3,6 +3,11 @@
 # Port for the HTTP server to listen on
 port: 8080
 
+# Host address for the HTTP server to listen on
+# Set to 0.0.0.0 to listen on all network interfaces
+# Or set to a specific IP address to bind to that interface
+host: "0.0.0.0"
+
 # Require HTTPS for all requests
 # When enabled, the plugin will log an error if a request is made over HTTP
 # This is intended to encourage the use of a reverse proxy with HTTPS
