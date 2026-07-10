@@ -3,12 +3,8 @@ package me.lenaic.httpcommands.endpoints;
 import com.google.gson.*;
 import me.lenaic.httpcommands.Endpoint;
 import me.lenaic.httpcommands.HttpCommandsPlugin;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.event.ClickEvent;
-import net.kyori.adventure.text.event.HoverEvent;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 
 import java.io.*;
@@ -24,18 +20,6 @@ import java.util.logging.Level;
 
 /**
  * Endpoint for validating player registration via POST /validate-registration
- *
- * Request body (JSON):
- * {
- *   "username": "PlayerName",
- *   "email": "player@email.com",
- *   "ip": "192.168.1.1",
- *   "callbackUrl": "https://website.com/api/validate"
- * }
- *
- * This endpoint sends a chat message to the player asking for confirmation
- * to allow their account to be registered with the provided email and IP.
- * The player can click on Confirm/Deny buttons in the chat.
  */
 public class ValidateRegistrationEndpoint implements Endpoint {
 
@@ -52,14 +36,14 @@ public class ValidateRegistrationEndpoint implements Endpoint {
      */
     public void addPendingRegistration(UUID playerId, PendingRegistration registration) {
         pendingRegistrations.put(playerId, registration);
-        
+
         // Schedule expiry after 1 minute
         scheduler.schedule(() -> {
             PendingRegistration removed = pendingRegistrations.remove(playerId);
             if (removed != null) {
                 Player player = Bukkit.getPlayer(playerId);
                 if (player != null && player.isOnline()) {
-                    player.sendMessage(Component.text("Your registration request has expired. Please start again on the website.", NamedTextColor.RED));
+                    player.sendMessage(ChatColor.RED + "Your registration request has expired. Please start again on the website.");
                 }
             }
         }, 1, TimeUnit.MINUTES);
@@ -150,52 +134,29 @@ public class ValidateRegistrationEndpoint implements Endpoint {
 
             // Use the registration ID from the request
             UUID registrationId = UUID.fromString(requestData.registrationId);
-            
+
             // Store the pending registration
             PendingRegistration pending = new PendingRegistration(
-                requestData.email, 
-                requestData.ip, 
-                requestData.callbackUrl,
-                requestData.registrationId,
-                System.currentTimeMillis()
+                    requestData.email,
+                    requestData.ip,
+                    requestData.callbackUrl,
+                    requestData.registrationId,
+                    System.currentTimeMillis()
             );
             addPendingRegistration(player.getUniqueId(), pending);
 
-            // Build the validation message with clickable buttons
-            Component confirmButton = Component.text()
-                .content("[ CONFIRM ]")
-                .color(TextColor.fromHexString("#22c55e"))
-                .hoverEvent(HoverEvent.showText(Component.text("Click to confirm registration", NamedTextColor.GREEN)))
-                .clickEvent(ClickEvent.runCommand("/register confirm " + registrationId))
-                .build();
-
-            Component denyButton = Component.text()
-                .content("[ DENY ]")
-                .color(TextColor.fromHexString("#ef4444"))
-                .hoverEvent(HoverEvent.showText(Component.text("Click to deny registration", NamedTextColor.RED)))
-                .clickEvent(ClickEvent.runCommand("/register deny " + registrationId))
-                .build();
-
-            Component message = Component.text()
-                .append(Component.text("\n"))
-                .append(Component.text("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n", NamedTextColor.GOLD))
-                .append(Component.text("Account Registration Request\n", NamedTextColor.AQUA))
-                .append(Component.text("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n", NamedTextColor.GOLD))
-                .append(Component.text("A website registration was attempted for your account.\n\n", NamedTextColor.WHITE))
-                .append(Component.text("Email: ", NamedTextColor.GRAY))
-                .append(Component.text(requestData.email + "\n", NamedTextColor.WHITE))
-                .append(Component.text("IP Address: ", NamedTextColor.GRAY))
-                .append(Component.text(requestData.ip + "\n\n", NamedTextColor.WHITE))
-                .append(Component.text("Do you want to allow this registration?\n", NamedTextColor.WHITE))
-                .append(Component.text("You have 1 minute to respond.\n\n", NamedTextColor.YELLOW))
-                .append(confirmButton)
-                .append(Component.text("  "))
-                .append(denyButton)
-                .append(Component.text("\n\n", NamedTextColor.WHITE))
-                .append(Component.text("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", NamedTextColor.GOLD))
-                .build();
-
-            player.sendMessage(message);
+            // Build a plain-text validation message (compatible with older servers)
+            player.sendMessage(ChatColor.GOLD + "========================================");
+            player.sendMessage(ChatColor.AQUA + "Account Registration Request");
+            player.sendMessage(ChatColor.GOLD + "========================================");
+            player.sendMessage(ChatColor.WHITE + "A website registration was attempted for your account.");
+            player.sendMessage(ChatColor.GRAY + "Email: " + ChatColor.WHITE + requestData.email);
+            player.sendMessage(ChatColor.GRAY + "IP Address: " + ChatColor.WHITE + requestData.ip);
+            player.sendMessage("");
+            player.sendMessage(ChatColor.WHITE + "Do you want to allow this registration? You have 1 minute to respond.");
+            player.sendMessage(ChatColor.GREEN + "To confirm: " + ChatColor.YELLOW + "/register confirm " + registrationId);
+            player.sendMessage(ChatColor.RED + "To deny: " + ChatColor.YELLOW + "/register deny " + registrationId);
+            player.sendMessage(ChatColor.GOLD + "========================================");
 
             plugin.getLogger().info("Sent registration validation request to player: " + requestData.username);
 
@@ -216,9 +177,9 @@ public class ValidateRegistrationEndpoint implements Endpoint {
      */
     public void sendResponseToWebsite(Player player, UUID registrationId, boolean confirmed) {
         PendingRegistration registration = getPendingRegistration(player.getUniqueId());
-        
+
         if (registration == null) {
-            player.sendMessage(Component.text("This registration request has expired. Please start again on the website.", NamedTextColor.RED));
+            player.sendMessage(ChatColor.RED + "This registration request has expired. Please start again on the website.");
             return;
         }
 
@@ -230,48 +191,54 @@ public class ValidateRegistrationEndpoint implements Endpoint {
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json");
                 conn.setDoOutput(true);
-                
+
                 JsonObject jsonBody = new JsonObject();
                 jsonBody.addProperty("registrationId", registrationId.toString());
                 jsonBody.addProperty("username", player.getName());
                 jsonBody.addProperty("confirmed", confirmed);
                 jsonBody.addProperty("email", registration.getEmail());
                 jsonBody.addProperty("ip", registration.getIp());
-                
+
                 try (OutputStream os = conn.getOutputStream()) {
                     byte[] input = jsonBody.toString().getBytes(StandardCharsets.UTF_8);
                     os.write(input, 0, input.length);
                 }
-                
+
                 int responseCode = conn.getResponseCode();
-                
+
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     if (responseCode == 410) {
                         // Expired
-                        player.sendMessage(Component.text("This registration request has expired. Please start again on the website.", NamedTextColor.RED));
+                        player.sendMessage(ChatColor.RED + "This registration request has expired. Please start again on the website.");
                     } else if (responseCode >= 200 && responseCode < 300) {
                         if (confirmed) {
-                            player.sendMessage(Component.text("Registration confirmed! Your account has been linked.", NamedTextColor.GREEN));
+                            player.sendMessage(ChatColor.GREEN + "Registration confirmed! Your account has been linked.");
                         } else {
-                            player.sendMessage(Component.text("Registration denied.", NamedTextColor.RED));
+                            player.sendMessage(ChatColor.RED + "Registration denied.");
                         }
                     } else {
-                        player.sendMessage(Component.text("Error communicating with the server. Please try again.", NamedTextColor.RED));
+                        player.sendMessage(ChatColor.RED + "Error communicating with the server. Please try again.");
                     }
                 });
-                
+
             } catch (Exception e) {
                 plugin.getLogger().log(Level.SEVERE, "Failed to send response to website", e);
                 Bukkit.getScheduler().runTask(plugin, () -> {
-                    player.sendMessage(Component.text("Error communicating with the server. Please try again.", NamedTextColor.RED));
+                    player.sendMessage(ChatColor.RED + "Error communicating with the server. Please try again.");
                 });
             }
         });
     }
 
     private String readRequestBody(com.sun.net.httpserver.HttpExchange exchange) {
-        try (InputStream is = exchange.getRequestBody()) {
-            return new String(is.readAllBytes(), StandardCharsets.UTF_8);
+        try (InputStream is = exchange.getRequestBody();
+             BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line).append('\n');
+            }
+            return sb.toString().trim();
         } catch (IOException e) {
             plugin.getLogger().log(Level.WARNING, "Failed to read request body", e);
             return null;
@@ -298,12 +265,12 @@ public class ValidateRegistrationEndpoint implements Endpoint {
             if (ipElement != null && !ipElement.isJsonNull()) {
                 data.ip = ipElement.getAsString();
             }
-            
+
             JsonElement callbackUrlElement = rootObject.get("callbackUrl");
             if (callbackUrlElement != null && !callbackUrlElement.isJsonNull()) {
                 data.callbackUrl = callbackUrlElement.getAsString();
             }
-            
+
             JsonElement registrationIdElement = rootObject.get("registrationId");
             if (registrationIdElement != null && !registrationIdElement.isJsonNull()) {
                 data.registrationId = registrationIdElement.getAsString();
@@ -340,11 +307,11 @@ public class ValidateRegistrationEndpoint implements Endpoint {
         public String getIp() {
             return ip;
         }
-        
+
         public String getCallbackUrl() {
             return callbackUrl;
         }
-        
+
         public String getRegistrationId() {
             return registrationId;
         }
