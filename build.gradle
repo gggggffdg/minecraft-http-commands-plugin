@@ -14,11 +14,6 @@ java {
     // Compile and target to Java 8 bytecode so the plugin can run on Java 8 up to the latest JDK.
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
-
-    // Optional: request a Java 8 toolchain if available (Gradle will use an appropriate JDK).
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(8)
-    }
 }
 
 repositories {
