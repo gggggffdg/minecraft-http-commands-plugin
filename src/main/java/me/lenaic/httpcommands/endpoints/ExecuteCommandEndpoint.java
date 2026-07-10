@@ -1,32 +1,24 @@
 package me.lenaic.httpcommands.endpoints;
 
 import com.google.gson.*;
-import me.lenaic.httpcommands.ConfigManager;
 import me.lenaic.httpcommands.Endpoint;
 import me.lenaic.httpcommands.HttpCommandsPlugin;
 import me.lenaic.httpcommands.PendingCommandManager;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
 import java.util.logging.Level;
 
 /**
  * Endpoint for executing commands via POST /execute
- *
- * Request body (JSON):
- * {
- *   "commands": ["command1", "command2"],
- *   "waitForPlayer": "playerName" (optional)
- * }
  */
 public class ExecuteCommandEndpoint implements Endpoint {
 
@@ -55,27 +47,23 @@ public class ExecuteCommandEndpoint implements Endpoint {
 
     @Override
     public void handle(com.sun.net.httpserver.HttpExchange exchange) throws IOException {
-        // Only allow POST method
         if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
             sendErrorResponse(exchange, 405, "Method not allowed. Use POST for this endpoint.");
             return;
         }
 
-        // Read request body
         String requestBody = readRequestBody(exchange);
         if (requestBody == null || requestBody.isEmpty()) {
             sendErrorResponse(exchange, 400, "Empty request body");
             return;
         }
 
-        // Parse request data
         RequestData requestData = parseRequestData(requestBody);
         if (requestData == null || requestData.commands == null || requestData.commands.isEmpty()) {
             sendErrorResponse(exchange, 400, "Missing or invalid 'commands' array in JSON");
             return;
         }
 
-        // Check if we need to wait for a player
         if (requestData.waitForPlayer != null && !requestData.waitForPlayer.isEmpty()) {
             handleWaitForPlayer(exchange, requestData);
         } else {
@@ -85,7 +73,7 @@ public class ExecuteCommandEndpoint implements Endpoint {
 
     private void handleWaitForPlayer(com.sun.net.httpserver.HttpExchange exchange, RequestData requestData) {
         String playerName = requestData.waitForPlayer;
-        OfflinePlayer player = Bukkit.getPlayer(playerName);
+        OfflinePlayer player = Bukkit.getOfflinePlayer(playerName);
 
         if (player != null && player.isOnline()) {
             plugin.getLogger().info("Player " + playerName + " is online, executing commands immediately");
@@ -155,8 +143,14 @@ public class ExecuteCommandEndpoint implements Endpoint {
     }
 
     private String readRequestBody(com.sun.net.httpserver.HttpExchange exchange) {
-        try (InputStream is = exchange.getRequestBody()) {
-            return new String(is.readAllBytes(), StandardCharsets.UTF_8);
+        try (InputStream is = exchange.getRequestBody();
+             BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line).append('\n');
+            }
+            return sb.toString().trim();
         } catch (IOException e) {
             plugin.getLogger().log(Level.WARNING, "Failed to read request body", e);
             return null;
@@ -189,33 +183,10 @@ public class ExecuteCommandEndpoint implements Endpoint {
     }
 
     private CommandResult executeCommandWithOutput(String command) {
-        StringBuilder outputBuilder = new StringBuilder();
-
-        Consumer<Component> feedbackConsumer = component -> {
-            String text = GsonComponentSerializer.gson().serialize(component);
-            if (outputBuilder.length() > 0) {
-                outputBuilder.append("\n");
-            }
-            outputBuilder.append(text);
-        };
-
-        CommandSender customSender = Bukkit.createCommandSender(feedbackConsumer);
-        boolean success = Bukkit.dispatchCommand(customSender, command);
-
-        String output;
-        String status;
-
-        if (!success) {
-            status = "failed";
-            output = outputBuilder.length() > 0 ? outputBuilder.toString() : null;
-        } else if (outputBuilder.length() == 0) {
-            status = "passed";
-            output = null;
-        } else {
-            status = "passed";
-            output = outputBuilder.toString();
-        }
-
+        // Simpler and compatible with older servers: dispatch from console and do not capture component output
+        boolean success = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
+        String status = success ? "passed" : "failed";
+        String output = null;
         return new CommandResult(status, output);
     }
 
