@@ -1,8 +1,8 @@
-name: HTTP-Commands
+name: ProMcSecure
 version: 1.2.0
 main: me.lenaic.httpcommands.HttpCommandsPlugin
 api-version: '1.21'
-author: ProMcScure plugin
+author: ProMcSecure plugin
 description: Execute Minecraft commands via HTTP POST requests
 plugin-type: PAPER
 
