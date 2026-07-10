@@ -6,14 +6,17 @@ port: 8080
 # Host address for the HTTP server to listen on
 # Set to 0.0.0.0 to listen on all network interfaces
 # Or set to a specific IP address to bind to that interface
+# Don't change anything here
 host: "0.0.0.0"
 
 # Require HTTPS for all requests
 # When enabled, the plugin will log an error if a request is made over HTTP
 # This is intended to encourage the use of a reverse proxy with HTTPS
 # Set to false to allow direct HTTP access (not recommended for production)
-require-https: true
+require-https: false
 
 # Bearer token for authentication
 # WARNING: Change this to a secure token in production!
-bearer-token: "change-me-to-a-secure-token"
+# The token is used to authenticate requests to the HTTP server.
+# Use /generateapi in ProMcBot to get the token key
+bearer-token: "generate-me-from-promcbot"
